@@ -26,6 +26,19 @@ class CockroachDbGrammar extends PostgresGrammar
             . 'order by c.relname';
     }
 
+    public function compileIndex(Blueprint $blueprint, Fluent $command)
+    {
+        if(strtoupper($command->algorithm) == 'GIN'){
+            return parent::compileIndex($blueprint, $command);
+        }
+        return sprintf('create index %s on %s (%s)%s',
+            $this->wrap($command->index),
+            $this->wrapTable($blueprint),
+            $this->columnize($command->columns),
+            $command->algorithm ? ' using '.$command->algorithm : '',
+        );
+    }
+
     /**
      * Compile a fulltext index key command.
      *
