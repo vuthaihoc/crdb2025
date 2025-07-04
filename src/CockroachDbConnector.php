@@ -19,4 +19,21 @@ class CockroachDbConnector extends PostgresConnector implements ConnectorInterfa
 
         return parent::getDsn($config);
     }
+
+    protected function configureTimezone($connection, array $config)
+    {
+        if (isset($config['timezone'])) {
+            $timezone = $config['timezone'];
+
+            $connection->prepare("set time zone '{$timezone}'")->execute();
+        }
+        if (isset($config['autocommit_before_ddl'])) {
+            if($config['autocommit_before_ddl'] === true || $config['autocommit_before_ddl'] === 'on'){
+                $connection->prepare("set autocommit_before_ddl = on;")->execute();
+            }elseif($config['autocommit_before_ddl'] === false || $config['autocommit_before_ddl'] === 'off'){
+                $connection->prepare("set autocommit_before_ddl = off;")->execute();
+            }
+        }
+    }
+    
 }
