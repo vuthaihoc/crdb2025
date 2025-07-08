@@ -5,6 +5,7 @@ namespace YlsIdeas\CockroachDb\Query;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\Grammars\Grammar;
 use Illuminate\Database\Query\Grammars\PostgresGrammar;
+use Illuminate\Support\Collection;
 use YlsIdeas\CockroachDb\Exceptions\FeatureNotSupportedException;
 
 class CockroachGrammar extends PostgresGrammar
@@ -63,16 +64,38 @@ class CockroachGrammar extends PostgresGrammar
         return trim($statement);
     }
 
-    /**
-     * Compile a "where fulltext" clause.
-     *
-     * @param  \Illuminate\Database\Query\Builder  $query
-     * @param  array  $where
-     * @return string
-     */
     public function whereFullText(Builder $query, $where)
     {
-        throw new FeatureNotSupportedException('Fulltext indexes are not supported by CockroachDB as of version 2.5');
+        $language = $where['options']['language'] ?? 'simple';
+
+        if (! in_array($language, $this->validFullTextLanguages())) {
+            $language = 'simple';
+        }
+
+//        $columns = (new Collection($where['columns']))->map(function ($column) use ($language) {
+//            return "to_tsvector('{$language}', {$this->wrap($column)})";
+//        })->implode(' || ');
+
+        $columns = array_map(function ($column) use ($language) {
+            return "({$this->wrap($column)})";
+        }, $where['columns']);
+        $columns = implode(' || \' \' || ', $columns);
+
+        $mode = 'plainto_tsquery';
+
+        if (($where['options']['mode'] ?? []) === 'phrase') {
+            $mode = 'phraseto_tsquery';
+        }
+
+//        if (($where['options']['mode'] ?? []) === 'websearch') {
+//            $mode = 'websearch_to_tsquery';
+//        }
+
+        if (($where['options']['mode'] ?? []) === 'custom') {
+            $mode = 'to_tsquery';
+        }
+
+        return "({$columns}) @@ {$mode}('{$language}', {$this->parameter($where['value'])})";
     }
 
     /**
@@ -85,4 +108,5 @@ class CockroachGrammar extends PostgresGrammar
     {
         return ['truncate ' . $this->wrapTable($query->from) . ' cascade' => []];
     }
+
 }

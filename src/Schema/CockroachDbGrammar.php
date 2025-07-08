@@ -50,7 +50,19 @@ class CockroachDbGrammar extends PostgresGrammar
      */
     public function compileFulltext(Blueprint $blueprint, Fluent $command)
     {
-        throw new FeatureNotSupportedException('Fulltext indexes are not supported by CockroachDB as of version 2.5');
+//        throw new FeatureNotSupportedException('Fulltext indexes are not supported by CockroachDB as of version 2.5');
+        $language = $command->language ?: 'simple';
+
+        $columns = array_map(function ($column) use ($language) {
+            return "({$this->wrap($column)})";
+        }, $command->columns);
+        $columns = implode(' || \' \' || ', $columns);
+        return sprintf('create index %s on %s using gin (to_tsvector(%s, %s))',
+            $this->wrap($command->index),
+            $this->wrapTable($blueprint),
+            $this->quoteString($language),
+            $columns,
+        );
     }
 
     /**
