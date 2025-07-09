@@ -66,10 +66,10 @@ class CockroachGrammar extends PostgresGrammar
 
     public function whereFullText(Builder $query, $where)
     {
-        $language = $where['options']['language'] ?? 'simple';
+        $language = $where['options']['language'] ?? 'english';
 
         if (! in_array($language, $this->validFullTextLanguages())) {
-            $language = 'simple';
+            $language = 'english';
         }
 
 //        $columns = (new Collection($where['columns']))->map(function ($column) use ($language) {
@@ -95,7 +95,7 @@ class CockroachGrammar extends PostgresGrammar
             $mode = 'to_tsquery';
         }
 
-        return "({$columns}) @@ {$mode}('{$language}', {$this->parameter($where['value'])})";
+        return "to_tsvector('{$language}', {$columns}) @@ {$mode}('{$language}', {$this->parameter($where['value'])})";
     }
 
     /**
