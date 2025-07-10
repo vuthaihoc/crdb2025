@@ -109,4 +109,15 @@ class CockroachGrammar extends PostgresGrammar
         return ['truncate ' . $this->wrapTable($query->from) . ' cascade' => []];
     }
 
+    protected function compileJsonUpdateColumn($key, $value)
+    {
+        $segments = explode('->', $key);
+
+        $field = $this->wrap(array_shift($segments));
+
+        $path = "'{".implode(',', $this->wrapJsonPathAttributes($segments, '"'))."}'";
+
+        return "{$field} = jsonb_set({$field}::jsonb, {$path}, ({$this->parameter($value)})::STRING::JSONB)";
+    }
+
 }
