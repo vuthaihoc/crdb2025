@@ -18,12 +18,13 @@ class CockroachDbGrammar extends PostgresGrammar
      *
      * @return string
      */
-    public function compileTables()
+    public function compileTables($schema)
     {
-        return 'select c.relname as name, n.nspname as schema, -1 as size, '
-            . 'obj_description(c.oid, \'pg_class\') as comment from pg_class c, pg_namespace n '
-            . 'where c.relkind = \'r\' and n.oid = c.relnamespace '
-            . 'order by c.relname';
+        return "select table_name as name, table_schema as schema, -1 as size, null as comment
+            from information_schema.tables
+            where table_type = 'BASE TABLE' "
+            . $this->compileSchemaWhereClause($schema, 'table_schema') . "
+            order by table_schema, table_name";
     }
 
     public function compileIndex(Blueprint $blueprint, Fluent $command)

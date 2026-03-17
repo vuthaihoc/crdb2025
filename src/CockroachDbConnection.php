@@ -3,6 +3,7 @@
 namespace YlsIdeas\CockroachDb;
 
 use Illuminate\Database\ConnectionInterface;
+use Illuminate\Database\Grammar;
 use Illuminate\Database\Grammar as BaseGrammar;
 use Illuminate\Database\PDO\PostgresDriver;
 use Illuminate\Database\PostgresConnection;
@@ -22,7 +23,14 @@ class CockroachDbConnection extends PostgresConnection implements ConnectionInte
      */
     protected function getDefaultQueryGrammar(): BaseGrammar
     {
-        return $this->withTablePrefix($this->setConnection(new QueryGrammar()));
+        return $this->withTablePrefix($this->setConnection(new QueryGrammar($this)));
+    }
+
+    public function withTablePrefix(Grammar $grammar)
+    {
+        $grammar->setTablePrefix($this->tablePrefix);
+
+        return $grammar;
     }
 
     /**
@@ -46,7 +54,7 @@ class CockroachDbConnection extends PostgresConnection implements ConnectionInte
      */
     protected function getDefaultSchemaGrammar(): BaseGrammar
     {
-        return $this->withTablePrefix($this->setConnection(new SchemaGrammar()));
+        return $this->withTablePrefix($this->setConnection(new SchemaGrammar($this)));
     }
 
     /**
