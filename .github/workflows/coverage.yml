@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Run CockroachDB Service
         run: docker-compose up -d
@@ -27,7 +27,7 @@ jobs:
           tools: composer:v2
           coverage: pcov
 
-      - uses: ramsey/composer-install@v3
+      - uses: ramsey/composer-install@v4
 
       - name: Configure Database
         run: php ./database.php
@@ -35,6 +35,6 @@ jobs:
       - name: Execute tests
         run: vendor/bin/pest
 
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v6
         with:
           files: ./build/logs/clover.xml
