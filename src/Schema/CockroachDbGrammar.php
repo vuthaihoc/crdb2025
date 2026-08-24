@@ -22,7 +22,7 @@ class CockroachDbGrammar extends PostgresGrammar
     {
         return "select table_name as name, table_schema as schema, -1 as size, null as comment
             from information_schema.tables
-            where table_type = 'BASE TABLE' "
+            where table_type = 'BASE TABLE' and "
             . $this->compileSchemaWhereClause($schema, 'table_schema') . "
             order by table_schema, table_name";
     }
