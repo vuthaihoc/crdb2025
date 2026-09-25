@@ -135,6 +135,24 @@ class CockroachDbGrammar extends PostgresGrammar
         return $column->autoIncrement && is_null($column->generatedAs) && ! $column->change;
     }
 
+    /**
+     * CockroachDB keeps dropped columns in pg_attribute (attisdropped), e.g.
+     * the hidden rowid column dropped when a primary key is added after the
+     * table is created, as Laravel does for `->primary()`.
+     *
+     * @param  string|null  $schema
+     * @param  string  $table
+     * @return string
+     */
+    public function compileColumns($schema, $table)
+    {
+        return str_replace(
+            'where c.relname = ',
+            'where not a.attisdropped and c.relname = ',
+            parent::compileColumns($schema, $table)
+        );
+    }
+
     public function compileIndex(Blueprint $blueprint, Fluent $command)
     {
         if (strtoupper($command->algorithm) == 'GIN') {
