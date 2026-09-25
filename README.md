@@ -1,13 +1,12 @@
 # CockroachDB Driver for Laravel
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/ylsideas/cockroachdb-laravel.svg?style=flat-square)](https://packagist.org/packages/ylsideas/cockroachdb-laravel)
-[![PHPUnit Tests](https://github.com/ylsideas/cockroachdb-laravel/actions/workflows/run-tests.yml/badge.svg)](https://github.com/ylsideas/cockroachdb-laravel/actions/workflows/run-tests.yml)
-[![Check & fix styling](https://github.com/ylsideas/cockroachdb-laravel/actions/workflows/pint.yml/badge.svg)](https://github.com/ylsideas/cockroachdb-laravel/actions/workflows/pint.yml)
-[![Total Downloads](https://img.shields.io/packagist/dt/ylsideas/cockroachdb-laravel.svg?style=flat-square)](https://packagist.org/packages/ylsideas/cockroachdb-laravel)
-[![codecov](https://codecov.io/github/ylsideas/cockroachdb-laravel/branch/main/graph/badge.svg?token=GCCY3KZHXQ)](https://codecov.io/github/ylsideas/cockroachdb-laravel)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/vuthaihoc/cockroachdb-laravel.svg?style=flat-square)](https://packagist.org/packages/vuthaihoc/cockroachdb-laravel)
+[![Total Downloads](https://img.shields.io/packagist/dt/vuthaihoc/cockroachdb-laravel.svg?style=flat-square)](https://packagist.org/packages/vuthaihoc/cockroachdb-laravel)
 [![Help Fund](https://img.shields.io/github/sponsors/peterfox?style=flat-square)](https://github.com/sponsors/peterfox)
-[![License](http://poser.pugx.org/ylsideas/cockroachdb-laravel/license)](https://packagist.org/packages/ylsideas/cockroachdb-laravel)
-[![PHP Version Require](http://poser.pugx.org/ylsideas/cockroachdb-laravel/require/php)](https://packagist.org/packages/ylsideas/cockroachdb-laravel)
+[![License](http://poser.pugx.org/vuthaihoc/cockroachdb-laravel/license)](https://packagist.org/packages/vuthaihoc/cockroachdb-laravel)
+[![PHP Version Require](http://poser.pugx.org/vuthaihoc/cockroachdb-laravel/require/php)](https://packagist.org/packages/vuthaihoc/cockroachdb-laravel)
+
+A driver/grammar for Laravel that works with CockroachDB. This is a fork of [ylsideas/cockroachdb-laravel](https://github.com/ylsideas/cockroachdb-laravel) by Peter Fox, maintained for Laravel 12 and 13.
 
 A driver/grammar for Laravel that works with CockroachDB. While CockroachDB is compatible with Postgresql, this support
 is not 1 to 1 meaning you may run into issues, this driver hopes to resolve those problems as much as possible.
