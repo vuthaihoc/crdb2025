@@ -6,7 +6,7 @@
 [![License](http://poser.pugx.org/vuthaihoc/cockroachdb-laravel/license)](https://packagist.org/packages/vuthaihoc/cockroachdb-laravel)
 [![PHP Version Require](http://poser.pugx.org/vuthaihoc/cockroachdb-laravel/require/php)](https://packagist.org/packages/vuthaihoc/cockroachdb-laravel)
 
-A driver/grammar for Laravel that works with CockroachDB. This is a fork of [ylsideas/cockroachdb-laravel](https://github.com/ylsideas/cockroachdb-laravel) by Peter Fox, maintained for Laravel 12 and 13.
+This is a fork of [ylsideas/cockroachdb-laravel](https://github.com/ylsideas/cockroachdb-laravel) by Peter Fox, maintained for Laravel 12 and 13.
 
 A driver/grammar for Laravel that works with CockroachDB. While CockroachDB is compatible with Postgresql, this support
 is not 1 to 1 meaning you may run into issues, this driver hopes to resolve those problems as much as possible.
