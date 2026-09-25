@@ -11,7 +11,9 @@ $options = [
     PDO::ATTR_EMULATE_PREPARES => false,
 ];
 
-$dsn = "pgsql:host=$host;port=26257;dbname=$db";
+$port = getenv('DB_PORT') ?: '26257';
+
+$dsn = "pgsql:host=$host;port=$port;dbname=$db";
 
 try {
     $pdo = new PDO($dsn, $user, $pass, $options);

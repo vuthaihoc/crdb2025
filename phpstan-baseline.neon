@@ -1,0 +1,22 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '''
+				#^Call to deprecated method setTablePrefix\(\) of class Illuminate\\Database\\Grammar\:
+				Use DB\:\:setTablePrefix\(\)$#
+			'''
+			identifier: method.deprecated
+			count: 1
+			path: src/CockroachDbConnection.php
+
+		-
+			message: '#^Anonymous function has an unused use \$language\.$#'
+			identifier: closure.unusedUse
+			count: 1
+			path: src/Query/CockroachGrammar.php
+
+		-
+			message: '#^Anonymous function has an unused use \$language\.$#'
+			identifier: closure.unusedUse
+			count: 1
+			path: src/Schema/CockroachDbGrammar.php

@@ -8,5 +8,9 @@ parameters:
     tmpDir: build/phpstan
     checkOctaneCompatibility: true
     checkModelProperties: true
-    checkMissingIterableValueType: false
 
+    ignoreErrors:
+        # Schema commands and columns are Fluent objects with magic attributes.
+        -
+            identifier: property.notFound
+            message: '#Illuminate\\Support\\Fluent#'
