@@ -5,7 +5,6 @@ namespace YlsIdeas\CockroachDb\Tests\Integration\Database\Postgres;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use YlsIdeas\CockroachDb\Exceptions\FeatureNotSupportedException;
 use YlsIdeas\CockroachDb\Tests\Integration\Database\DatabaseTestCase;
 use YlsIdeas\CockroachDb\Tests\WithMultipleApplicationVersions;
 
@@ -44,10 +43,12 @@ class FulltextTest extends DatabaseTestCase
             ['title' => 'PostgreSQL Security', 'body' => 'When configured properly, PostgreSQL ...'],
         ]);
 
-        $this->expectException(FeatureNotSupportedException::class);
-        DB::table('articles')
+        // CockroachDB supports to_tsvector/plainto_tsquery since v23.1.
+        $articles = DB::table('articles')
             ->whereFulltext(['title', 'body'], 'database')
             ->orderBy('id')
-            ->get();
+            ->pluck('title');
+
+        $this->assertEquals(['PostgreSQL Tutorial', 'PostgreSQL vs. YourSQL'], $articles->all());
     }
 }

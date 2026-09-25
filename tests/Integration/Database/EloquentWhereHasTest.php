@@ -83,6 +83,7 @@ class EloquentWhereHasTest extends DatabaseTestCase
     {
         $comments = Comment::whereMorphRelation('commentable', '*', 'public', true)
             ->orWhereMorphRelation('commentable', '*', 'public', false)
+            ->orderBy('id')
             ->get();
 
         $this->assertEquals([1, 2], $comments->pluck('id')->all());

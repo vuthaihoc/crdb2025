@@ -2,7 +2,7 @@
 
 namespace YlsIdeas\CockroachDb\Tests\Database;
 
-use Illuminate\Database\ConnectionInterface;
+use Illuminate\Database\Connection;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\Expression as Raw;
 use Illuminate\Database\Query\Grammars\Grammar;
@@ -123,47 +123,51 @@ class DatabaseCockroachDbQueryBuilderTest extends TestCase
         $builder->toSql();
     }
 
-    public function test_where_full_text_throws_exception_cockroach_db()
+    public function test_where_full_text_compiles_to_text_search()
     {
-        if (! method_exists(Grammar::class, 'whereFulltext')) {
-            $this->markTestSkipped('fullText features do not exist in this application version');
-        }
-
-        $this->expectException(FeatureNotSupportedException::class);
+        // CockroachDB supports full-text search (to_tsvector / plainto_tsquery) since v23.1.
         $builder = $this->getCockroachDbBuilder();
         $builder->select('*')->from('users')->whereFullText('description', 'should contain');
-        $builder->toSql();
+
+        $this->assertSame(
+            'select * from "users" where to_tsvector(\'english\', ("description")) @@ plainto_tsquery(\'english\', ?)',
+            $builder->toSql()
+        );
     }
 
     protected function getConnection()
     {
-        $connection = m::mock(ConnectionInterface::class);
+        $connection = m::mock(Connection::class);
         $connection->shouldReceive('getDatabaseName')->andReturn('database');
+        $connection->shouldReceive('getTablePrefix')->andReturn('');
 
         return $connection;
     }
 
     protected function getBuilder()
     {
-        $grammar = new Grammar();
+        $connection = $this->getConnection();
+        $grammar = new Grammar($connection);
         $processor = m::mock(Processor::class);
 
-        return new Builder($this->getConnection(), $grammar, $processor);
+        return new Builder($connection, $grammar, $processor);
     }
 
     protected function getCockroachDbBuilder()
     {
-        $grammar = new CockroachGrammar();
+        $connection = $this->getConnection();
+        $grammar = new CockroachGrammar($connection);
         $processor = m::mock(Processor::class);
 
-        return new Builder($this->getConnection(), $grammar, $processor);
+        return new Builder($connection, $grammar, $processor);
     }
 
     protected function getCockroachDbBuilderWithProcessor()
     {
-        $grammar = new CockroachGrammar();
+        $connection = $this->getConnection();
+        $grammar = new CockroachGrammar($connection);
         $processor = new CockroachDbProcessor();
 
-        return new Builder(m::mock(ConnectionInterface::class), $grammar, $processor);
+        return new Builder($connection, $grammar, $processor);
     }
 }

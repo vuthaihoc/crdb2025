@@ -13,6 +13,7 @@ class DatabaseCockroachDbProcessorTest extends TestCase
     public function test_process_columns()
     {
         $this->skipIfOlderThan('11.0.0');
+        $this->skipIfNewerThan('12.0.0');
         $processor = new CockroachDbProcessor();
 
         $listing = [

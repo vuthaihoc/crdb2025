@@ -187,7 +187,7 @@ class EloquentModelEncryptedCastingTest extends DatabaseTestCase
     public function test_as_encrypted_collection()
     {
         $this->skipIfOlderThan('8.75');
-        $expectedCount = $this->executeOnVersion('9.0', 10, 12);
+        $expectedCount = $this->executeOnVersion('12.0', 9, fn () => $this->executeOnVersion('9.0', 10, 12));
 
         $this->encrypter->expects('encryptString')
             ->twice()
@@ -240,7 +240,7 @@ class EloquentModelEncryptedCastingTest extends DatabaseTestCase
     public function test_as_encrypted_array_object()
     {
         $this->skipIfOlderThan('8.75');
-        $expectedCount = $this->executeOnVersion('9.0', 10, 12);
+        $expectedCount = $this->executeOnVersion('12.0', 9, fn () => $this->executeOnVersion('9.0', 10, 12));
 
         $this->encrypter->expects('encryptString')
             ->once()

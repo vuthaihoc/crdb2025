@@ -3,6 +3,7 @@
 namespace YlsIdeas\CockroachDb\Tests\Database;
 
 use Illuminate\Database\Connection;
+use Illuminate\Foundation\Application;
 use Mockery as m;
 use PHPUnit\Framework\TestCase;
 use YlsIdeas\CockroachDb\Builder\CockroachDbBuilder;
@@ -22,9 +23,8 @@ class DatabaseCockroachDbBuilderTest extends TestCase
 
     public function test_create_database()
     {
-        $grammar = new CockroachDbGrammar();
-
         $connection = $this->getConnection();
+        $grammar = new CockroachDbGrammar($connection);
         $connection->shouldReceive('getConfig')->once()->with('charset')->andReturn('utf8');
         $connection->shouldReceive('getSchemaGrammar')->once()->andReturn($grammar);
         $connection->shouldReceive('statement')->once()->with(
@@ -37,9 +37,8 @@ class DatabaseCockroachDbBuilderTest extends TestCase
 
     public function test_drop_database_if_exists()
     {
-        $grammar = new CockroachDbGrammar();
-
         $connection = $this->getConnection();
+        $grammar = new CockroachDbGrammar($connection);
         $connection->shouldReceive('getSchemaGrammar')->once()->andReturn($grammar);
         $connection->shouldReceive('statement')->once()->with(
             'drop database if exists "my_database_a"'
@@ -52,6 +51,8 @@ class DatabaseCockroachDbBuilderTest extends TestCase
 
     public function test_has_table_when_schema_unqualified_and_search_path_missing()
     {
+        $this->skipLegacySchemaBuilderMock();
+
         $this->skipIfOlderThan('10.0.0');
 
         $connection = $this->getConnection();
@@ -77,6 +78,8 @@ class DatabaseCockroachDbBuilderTest extends TestCase
 
     public function test_has_table_when_schema_unqualified_and_search_path_filled()
     {
+        $this->skipLegacySchemaBuilderMock();
+
         $this->skipIfOlderThan('11.0.0');
 
         $connection = $this->getConnection();
@@ -97,6 +100,8 @@ class DatabaseCockroachDbBuilderTest extends TestCase
 
     public function test_has_table_when_schema_unqualified_and_search_path_fallback_filled()
     {
+        $this->skipLegacySchemaBuilderMock();
+
         $this->skipIfOlderThan('11.0.0');
 
         $connection = $this->getConnection();
@@ -118,6 +123,8 @@ class DatabaseCockroachDbBuilderTest extends TestCase
 
     public function test_has_table_when_schema_unqualified_and_search_path_is_user_variable()
     {
+        $this->skipLegacySchemaBuilderMock();
+
         $this->skipIfOlderThan('11.0.0');
 
         $connection = $this->getConnection();
@@ -139,6 +146,8 @@ class DatabaseCockroachDbBuilderTest extends TestCase
 
     public function test_has_table_when_schema_qualified_and_search_path_mismatches()
     {
+        $this->skipLegacySchemaBuilderMock();
+
         $this->skipIfOlderThan('11.0.0');
 
         $connection = $this->getConnection();
@@ -172,6 +181,8 @@ class DatabaseCockroachDbBuilderTest extends TestCase
 
     public function test_get_column_listing_when_schema_unqualified_and_search_path_missing()
     {
+        $this->skipLegacySchemaBuilderMock();
+
         $this->skipIfOlderThan('11.0.0');
 
         $connection = $this->getConnection();
@@ -192,6 +203,8 @@ class DatabaseCockroachDbBuilderTest extends TestCase
 
     public function test_get_column_listing_when_schema_unqualified_and_search_path_filled()
     {
+        $this->skipLegacySchemaBuilderMock();
+
         $this->skipIfOlderThan('11.0.0');
 
         $connection = $this->getConnection();
@@ -211,6 +224,8 @@ class DatabaseCockroachDbBuilderTest extends TestCase
 
     public function test_get_column_listing_when_schema_unqualified_and_search_path_is_user_variable()
     {
+        $this->skipLegacySchemaBuilderMock();
+
         $this->skipIfOlderThan('11.0.0');
 
         $connection = $this->getConnection();
@@ -265,6 +280,8 @@ class DatabaseCockroachDbBuilderTest extends TestCase
 
     public function test_drop_all_tables_when_search_path_is_string()
     {
+        $this->skipLegacySchemaBuilderMock();
+
         $this->skipIfOlderThan('11.0.0');
 
         $connection = $this->getConnection();
@@ -289,6 +306,8 @@ class DatabaseCockroachDbBuilderTest extends TestCase
 
     public function test_drop_all_tables_when_search_path_is_string_of_many()
     {
+        $this->skipLegacySchemaBuilderMock();
+
         $this->skipIfOlderThan('11.0.0');
 
         $connection = $this->getConnection();
@@ -315,6 +334,8 @@ class DatabaseCockroachDbBuilderTest extends TestCase
 
     public function test_drop_all_tables_when_search_path_is_array_of_many()
     {
+        $this->skipLegacySchemaBuilderMock();
+
         $this->skipIfOlderThan('11.0.0');
 
         $connection = $this->getConnection();
@@ -344,9 +365,24 @@ class DatabaseCockroachDbBuilderTest extends TestCase
         $builder->dropAllTables();
     }
 
+    /**
+     * These tests mock how Laravel 11 and older resolved the search path inside the
+     * schema builder; Laravel 12 queries through compileTableExists()/scalar() instead.
+     * The behaviour is covered against a real server by the integration tests.
+     */
+    protected function skipLegacySchemaBuilderMock(): void
+    {
+        if (version_compare(Application::VERSION, '12.0.0', '>=')) {
+            $this->markTestSkipped('Mocks Laravel 11 schema builder internals; covered by integration tests.');
+        }
+    }
+
     protected function getConnection()
     {
-        return m::mock(Connection::class);
+        $connection = m::mock(Connection::class);
+        $connection->shouldReceive('getTablePrefix')->andReturn('')->byDefault();
+
+        return $connection;
     }
 
     protected function getBuilder($connection)
@@ -354,8 +390,8 @@ class DatabaseCockroachDbBuilderTest extends TestCase
         return new CockroachDbBuilder($connection);
     }
 
-    protected function getGrammar()
+    protected function getGrammar($connection = null)
     {
-        return new CockroachDbGrammar();
+        return new CockroachDbGrammar($connection ?? $this->getConnection());
     }
 }

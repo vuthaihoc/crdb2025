@@ -22,6 +22,7 @@ class DatabaseCockroachDbSchemaGrammarTest extends TestCase
     public function onlyForLaravel10()
     {
         $this->skipIfOlderThan('11.0.0');
+        $this->skipIfNewerThan('12.0.0');
     }
 
     protected function tearDown(): void
@@ -824,7 +825,7 @@ class DatabaseCockroachDbSchemaGrammarTest extends TestCase
         $this->assertSame($expected, $statements[0]);
     }
 
-    public function generatedAsStatements(): \Generator
+    public static function generatedAsStatements(): \Generator
     {
         yield 'default' => [
             fn (Blueprint $blueprint) => $blueprint->increments('foo')->generatedAs(),

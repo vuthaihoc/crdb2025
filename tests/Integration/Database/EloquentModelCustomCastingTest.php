@@ -17,6 +17,7 @@ use PHPUnit\Framework\TestCase;
 use YlsIdeas\CockroachDb\Tests\WithMultipleApplicationVersions;
 
 #[Group('integration')]
+#[\PHPUnit\Framework\Attributes\RequiresPhpExtension('gmp')]
 class EloquentModelCustomCastingTest extends TestCase
 {
     use WithMultipleApplicationVersions;
