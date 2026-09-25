@@ -182,7 +182,7 @@ class CockroachDbGrammar extends PostgresGrammar
         //        throw new FeatureNotSupportedException('Fulltext indexes are not supported by CockroachDB as of version 2.5');
         $language = $command->language ?: 'simple';
 
-        $columns = array_map(function ($column) use ($language) {
+        $columns = array_map(function ($column) {
             return "({$this->wrap($column)})";
         }, $command->columns);
         $columns = implode(' || \' \' || ', $columns);

@@ -3,7 +3,6 @@
 namespace YlsIdeas\CockroachDb;
 
 use Illuminate\Database\ConnectionInterface;
-use Illuminate\Database\Grammar;
 use Illuminate\Database\Grammar as BaseGrammar;
 use Illuminate\Database\PDO\PostgresDriver;
 use Illuminate\Database\PostgresConnection;
@@ -23,14 +22,8 @@ class CockroachDbConnection extends PostgresConnection implements ConnectionInte
      */
     protected function getDefaultQueryGrammar(): BaseGrammar
     {
-        return $this->withTablePrefix($this->setConnection(new QueryGrammar($this)));
-    }
-
-    public function withTablePrefix(Grammar $grammar)
-    {
-        $grammar->setTablePrefix($this->tablePrefix);
-
-        return $grammar;
+        // Laravel 12 grammars read the table prefix from their connection.
+        return new QueryGrammar($this);
     }
 
     /**
@@ -54,7 +47,7 @@ class CockroachDbConnection extends PostgresConnection implements ConnectionInte
      */
     protected function getDefaultSchemaGrammar(): BaseGrammar
     {
-        return $this->withTablePrefix($this->setConnection(new SchemaGrammar($this)));
+        return new SchemaGrammar($this);
     }
 
     /**
@@ -87,17 +80,5 @@ class CockroachDbConnection extends PostgresConnection implements ConnectionInte
     {
         /** @phpstan-ignore-next-line Now redundant in Laravel 11 */
         return new PostgresDriver();
-    }
-
-    /**
-     * Required to set the connection. This isn't compatible with older Laravel versions
-     */
-    protected function setConnection(BaseGrammar $grammar): BaseGrammar
-    {
-        if (method_exists($grammar, 'setConnection')) {
-            return $grammar->setConnection($this);
-        }
-
-        return $grammar;
     }
 }

@@ -76,7 +76,7 @@ class CockroachGrammar extends PostgresGrammar
 //            return "to_tsvector('{$language}', {$this->wrap($column)})";
 //        })->implode(' || ');
 
-        $columns = array_map(function ($column) use ($language) {
+        $columns = array_map(function ($column) {
             return "({$this->wrap($column)})";
         }, $where['columns']);
         $columns = implode(' || \' \' || ', $columns);
