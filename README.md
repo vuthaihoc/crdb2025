@@ -33,7 +33,7 @@ as a way of encouraging more development.
 You can install the package via composer:
 
 ```bash
-composer require ylsideas/cockroachdb-laravel
+composer require vuthaihoc/cockroachdb-laravel
 ```
 
 You need to add the connection type to the database config:
@@ -77,11 +77,54 @@ At current if you try to call the `delete` method of the Query builder together 
 a `YlsIdeas\CockroachDb\Exceptions\FeatureNotSupportedException` exception will be thrown.
 
 ### Fulltext Search
-Eloquent and Postgresql support Fulltext search. CockroachDB does not support any full text
-search meaning the feature cannot be used when using this driver.
+CockroachDB supports full-text search since v23.1. `$table->fullText([...])` creates a GIN index on
+`to_tsvector(...)` and `whereFullText()` compiles to `to_tsvector(...) @@ plainto_tsquery(...)`, as on PostgreSQL.
 
-At current if you try to create a Fulltext index using the Schema builder or try to use the `whereFulltext`
-method of the Query builder a `YlsIdeas\CockroachDb\Exceptions\FeatureNotSupportedException` exception will be thrown.
+### Migrations and `autocommit_before_ddl`
+Since v25, CockroachDB commits the open transaction before every DDL statement (`autocommit_before_ddl = on`),
+so a migration wrapped in a transaction fails with "There is no active transaction". The driver therefore
+runs migrations outside transactions, like MySQL. To keep transactional migrations, turn the setting off:
+
+```php
+'crdb' => [
+    // ...
+    'variables' => ['autocommit_before_ddl' => 'off'],
+],
+```
+
+### Session variables
+The `variables` option runs `SET <name> = <value>` on every new connection:
+
+```php
+'variables' => [
+    'default_int_size' => 4,
+    'application_name' => 'my-app',
+],
+```
+
+### Strict integers (portable to MySQL and MatrixOne)
+CockroachDB's `integer` is 64-bit and it does not check MySQL's `tinyint` or unsigned ranges, so data written
+through `integer()`, `tinyInteger()` or `unsigned*()` columns may not fit when moving to MySQL, MariaDB or
+MatrixOne. `strict_integers` keeps every integer column within its MySQL range:
+
+```php
+'crdb' => [
+    // ...
+    'strict_integers' => true,
+],
+```
+
+| Blueprint | Column | Check |
+|-----------|--------|-------|
+| `integer()` | `INT4` | native range |
+| `unsignedInteger()` | `INT8` | `between 0 and 4294967295` |
+| `mediumInteger()` | `INT4` | `between -8388608 and 8388607` (unsigned: `0` and `16777215`) |
+| `smallInteger()` | `INT2` | native range (unsigned: `INT4`, `0` to `65535`) |
+| `tinyInteger()` | `INT2` | `between -128 and 127` (unsigned: `0` and `255`) |
+| `unsignedBigInteger()`, `foreignId()` | `INT8` | `>= 0` |
+
+Auto-increment columns (`id()`, `increments()`) are unchanged. The option applies when columns are created;
+`->change()` only changes the type. It is off by default so existing schemas keep their behaviour.
 
 ### Serverless Support
 Cockroach Serverless requires you to provide a cluster with connection.
@@ -122,8 +165,7 @@ The tests try to closely follow the same functionality of the grammar provided b
 by lifting the tests straight from laravel/framework. This does provide some complications.
 Namely, cockroachdb is designed to be distributed so primary keys do not occur in sequence.
 
-Tests should also try to be compatible with not just the latest version of Laravel but across
-Laravel 8, 9 and 10, this requires some tests to be skipped.
+The test suite currently targets Laravel 12. The `tests/Database/Laravel11` tests are skipped on Laravel 12.
 
 You can run up a local cockroachDB test instance using Docker compose.
 ```shell
@@ -141,9 +183,12 @@ Then run the following PHP script to create a test database and user
 php ./database.php
 ```
 
-Afterwards you can run the test suite.
+Afterwards you can run the test suite. `DB_HOST` / `DB_PORT` point it at another server, for example a
+throwaway in-memory node:
 ```bash
-composer test
+docker run -d --name crdb-test -p 127.0.0.1:26258:26257 cockroachdb/cockroach:v25.3.2 start-single-node --insecure --store=type=mem,size=1GiB
+DB_PORT=26258 php ./database.php
+DB_PORT=26258 composer test
 ```
 
 To clean up, you only need stop docker composer.
