@@ -33,6 +33,10 @@
         "phpstan/phpstan-deprecation-rules": "^2.0",
         "phpstan/phpstan-phpunit": "^2.0"
     },
+    "suggest": {
+        "vuthaihoc/laravel-db-portable": "Portable JSON, NULLS LAST and index macros, and scan/audit/copy commands for moving between CockroachDB, MatrixOne, MySQL and PostgreSQL",
+        "vuthaihoc/laravel-matrixone": "MatrixOne driver, for moving an application from CockroachDB to MatrixOne"
+    },
     "autoload": {
         "psr-4": {
             "YlsIdeas\\CockroachDb\\": "src"

@@ -158,6 +158,11 @@ You may also use a URL in the following format.
 DATABASE_URL=cockroachdb://<username>:<password>@<host>:<port>/<database>?sslmode=verify-full&cluster=<cluster>
 ```
 
+## Related packages
+
+- [vuthaihoc/laravel-db-portable](https://github.com/vuthaihoc/laravel-db-portable): query builder and schema macros that compile for CockroachDB/PostgreSQL, MySQL/MatrixOne and SQLite, and `db-portable:scan` / `audit` / `copy` commands for moving between databases.
+- [vuthaihoc/laravel-matrixone](https://github.com/vuthaihoc/laravel-matrixone): the MatrixOne driver. `strict_integers` keeps CockroachDB integer columns within MySQL ranges, so data copied to MatrixOne fits.
+
 ## Testing
 
 The tests try to closely follow the same functionality of the grammar provided by Laravel
