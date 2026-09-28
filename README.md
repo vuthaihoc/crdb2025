@@ -234,6 +234,27 @@ The `variables` option runs `SET <name> = <value>` on every new connection:
 ],
 ```
 
+### Serialization failures (SQLSTATE 40001)
+CockroachDB runs transactions as `SERIALIZABLE` and reports contention as `40001` ("restart transaction"), which
+the client must retry. The driver retries:
+
+- `DB::transaction($callback)` without an attempt count: up to `retry_attempts` runs of the callback. An explicit
+  count (`DB::transaction($callback, 5)`) is kept. Keep side effects that must not repeat out of the callback
+  (or use `DB::afterCommit()` / `afterCommit` jobs).
+- A statement outside a transaction that fails with `40001` (its implicit transaction was rolled back).
+- `DB::beginTransaction()` / `commit()` by hand are not retried: wrap the work in `DB::transaction()`.
+
+Each retry waits an exponential backoff with jitter:
+
+```php
+'crdb' => [
+    // ...
+    'retry_attempts' => 3,     // 1 disables the retries
+    'retry_base_delay' => 50,  // ms, doubled on every retry
+    'retry_max_delay' => 1000, // ms
+],
+```
+
 ### Strict integers (portable to MySQL and MatrixOne)
 CockroachDB's `integer` is 64-bit and it does not check MySQL's `tinyint` or unsigned ranges, so data written
 through `integer()`, `tinyInteger()` or `unsigned*()` columns may not fit when moving to MySQL, MariaDB or
