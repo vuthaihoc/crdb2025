@@ -75,9 +75,70 @@ do something like this you will need to use a sub-query instead.
 At current if you try to call the `delete` method of the Query builder together with a `join` then
 a `YlsIdeas\CockroachDb\Exceptions\FeatureNotSupportedException` exception will be thrown.
 
-### Fulltext Search
-CockroachDB supports full-text search since v23.1. `$table->fullText([...])` creates a GIN index on
-`to_tsvector(...)` and `whereFullText()` compiles to `to_tsvector(...) @@ plainto_tsquery(...)`, as on PostgreSQL.
+### Full-text search
+Laravel's own API works: `$table->fullText([...])` creates a GIN index, and `whereFullText()` searches
+exactly the expression of that index, so the index is used:
+
+```php
+$table->fullText(['title', 'description']);                    // migration
+
+Post::whereFullText(['title', 'description'], $search)->get();
+Post::searchFullText(['title', 'description'], $search)->get(); // matches, most relevant first
+Post::select('*')->selectFullTextRelevance(['title', 'description'], $search)->get();   // ts_rank as "relevance"
+```
+
+- **Several columns**: CockroachDB has no `tsvector || tsvector` (PostgreSQL's way), so the columns are joined as
+  text: `to_tsvector('english', coalesce(title, '') || ' ' || coalesce(description, ''))`. A NULL column does
+  not hide the row.
+- **Language**: `['language' => 'simple']` per query and `->language('simple')` per index, else the connection's
+  `fulltext_language`, else `english`. The index and the query must use the same one. CockroachDB has simple,
+  danish, dutch, english, finnish, french, german, hungarian, italian, norwegian, portuguese, russian, spanish,
+  swedish and turkish; another language throws. `simple` (no stemming, no stopwords) suits Vietnamese and CJK.
+- **Modes**: default `plainto_tsquery`, `'phrase'`, `'raw'` (`to_tsquery` syntax such as `run:* & !slow`) and
+  `'websearch'` (`"a phrase" -excluded or other`), translated because CockroachDB has no `websearch_to_tsquery`.
+- A search made only of stopwords or punctuation ("the", "!!") is an error on CockroachDB; the driver makes it
+  match nothing, as PostgreSQL does.
+- **A tsvector column** (large tables): `tsvector` generated column with a GIN index, searched with
+  `['vector' => true]`:
+
+```php
+$table->tsvector('search')->storedAs("to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(description, ''))");
+$table->index('search', null, 'gin');
+
+Post::whereFullText('search', $search, ['vector' => true, 'language' => 'simple'])->get();
+```
+
+**Upgrading from 2.2**: the index expression changed (coalesce, and `english` instead of `simple` when no
+language is given), so existing full-text indexes no longer match `whereFullText()`. Recreate them:
+
+```php
+Schema::table('posts', function (Blueprint $table) {
+    $table->dropFullText(['title', 'description']);
+    $table->fullText(['title', 'description'])->language('simple');
+});
+```
+
+### Suggestions and fuzzy search (trigrams)
+```php
+Word::whereStartsWith('word', $search)->get();         // ilike 'search%'
+Word::whereContains('word', $search)->get();           // ilike '%search%'
+Word::whereSimilar('word', $search)->get();            // word % 'search': typo tolerant
+Word::whereSimilar('word', $search, 0.5)->get();       // and similarity() >= 0.5
+Word::select('*')->selectSimilarity('word', $search)->orderBySimilarity('word', $search)->get();
+Word::suggest('word', $search)->limit(10)->get();      // search box
+```
+
+- `%`, `_` and `\` in the search are matched literally.
+- `suggest()`: under 3 characters, the values starting with the search; from 3 characters, also the values
+  containing it or similar to it. Values starting with the search come first, then the most similar, then the
+  shortest.
+- `unaccent: true` ignores accents and case, "chao" finds "chào":
+  `Word::suggest('word', $search, unaccent: true)`.
+- `%` uses the session's `pg_trgm.similarity_threshold` (0.3); set it with `'variables' => ['pg_trgm.similarity_threshold' => 0.2]`.
+- CockroachDB has `similarity()` but not `word_similarity()`, `<%` or `<->`.
+- Index: `create index words_word_trigram on words using gin (word gin_trgm_ops)`, or
+  `using gin (unaccent(lower(word)) gin_trgm_ops)` for `unaccent: true`. The `trigramIndex()` macro of
+  [laravel-db-portable](https://github.com/vuthaihoc/laravel-db-portable) creates both.
 
 ### Migrations and `autocommit_before_ddl`
 Since v25, CockroachDB commits the open transaction before every DDL statement (`autocommit_before_ddl = on`),

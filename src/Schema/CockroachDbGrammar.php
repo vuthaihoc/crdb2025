@@ -5,7 +5,7 @@ namespace YlsIdeas\CockroachDb\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Schema\Grammars\PostgresGrammar;
 use Illuminate\Support\Fluent;
-use YlsIdeas\CockroachDb\Exceptions\FeatureNotSupportedException;
+use YlsIdeas\CockroachDb\Query\FullText;
 
 class CockroachDbGrammar extends PostgresGrammar
 {
@@ -246,30 +246,23 @@ class CockroachDbGrammar extends PostgresGrammar
     }
 
     /**
-     * Compile a fulltext index key command.
+     * Compile a fulltext index key command: a GIN index on the expression
+     * whereFullText() searches (see FullText). The language is the index's
+     * `->language()`, else the connection's `fulltext_language`, else english.
      *
      * @param  \Illuminate\Database\Schema\Blueprint  $blueprint
      * @param  \Illuminate\Support\Fluent  $command
      * @return string
-     *
-     * @throws \RuntimeException
      */
     public function compileFulltext(Blueprint $blueprint, Fluent $command)
     {
-        //        throw new FeatureNotSupportedException('Fulltext indexes are not supported by CockroachDB as of version 2.5');
-        $language = $command->language ?: 'simple';
-
-        $columns = array_map(function ($column) {
-            return "({$this->wrap($column)})";
-        }, $command->columns);
-        $columns = implode(' || \' \' || ', $columns);
+        $language = FullText::language($this->connection, $command->language);
 
         return sprintf(
-            'create index %s on %s using gin (to_tsvector(%s, %s))',
+            'create index %s on %s using gin (%s)',
             $this->wrap($command->index),
             $this->wrapTable($blueprint),
-            $this->quoteString($language),
-            $columns,
+            FullText::document(array_map(fn ($column) => $this->wrap($column), $command->columns), $language),
         );
     }
 

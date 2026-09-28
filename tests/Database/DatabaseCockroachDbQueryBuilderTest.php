@@ -12,6 +12,7 @@ use PHPUnit\Framework\TestCase;
 use YlsIdeas\CockroachDb\Exceptions\FeatureNotSupportedException;
 use YlsIdeas\CockroachDb\Processor\CockroachDbProcessor;
 use YlsIdeas\CockroachDb\Query\CockroachGrammar;
+use YlsIdeas\CockroachDb\Query\CockroachQueryBuilder;
 
 class DatabaseCockroachDbQueryBuilderTest extends TestCase
 {
@@ -125,14 +126,93 @@ class DatabaseCockroachDbQueryBuilderTest extends TestCase
 
     public function test_where_full_text_compiles_to_text_search()
     {
-        // CockroachDB supports full-text search (to_tsvector / plainto_tsquery) since v23.1.
+        // A base builder (e.g. a join clause) binds the search only.
         $builder = $this->getCockroachDbBuilder();
-        $builder->select('*')->from('users')->whereFullText('description', 'should contain');
+        $builder->getConnection()->shouldReceive('getConfig')->andReturn(null);
+        $builder->select('*')->from('users')->whereFullText(['name', 'description'], 'should contain');
 
         $this->assertSame(
-            'select * from "users" where to_tsvector(\'english\', ("description")) @@ plainto_tsquery(\'english\', ?)',
+            'select * from "users" where to_tsvector(\'english\', coalesce("name", \'\') || \' \' || coalesce("description", \'\')) @@ plainto_tsquery(\'english\', ?)',
             $builder->toSql()
         );
+    }
+
+    public function test_where_full_text_guards_searches_without_lexemes()
+    {
+        $builder = $this->getCockroachQueryBuilder(['fulltext_language' => 'simple']);
+        $builder->select('*')->from('users')->where('id', 1)->whereFullText('description', 'c++ rocks!');
+
+        $this->assertSame(
+            'select * from "users" where "id" = ? and case when to_tsvector(\'simple\', ?) = \'\'::tsvector then false else to_tsvector(\'simple\', coalesce("description", \'\')) @@ plainto_tsquery(\'simple\', ?) end',
+            $builder->toSql()
+        );
+        $this->assertSame([1, 'c rocks', 'c rocks'], $builder->getBindings());
+    }
+
+    public function test_websearch_is_translated_to_tsquery()
+    {
+        $builder = $this->getCockroachQueryBuilder();
+        $builder->select('*')->from('posts')->whereFullText('body', '"fast query" -slow cook or bake', ['mode' => 'websearch', 'vector' => true]);
+
+        $this->assertStringContainsString('"body" @@ to_tsquery(\'english\', ?)', $builder->toSql());
+        $this->assertSame(['fast query slow cook bake', '(fast <-> query) & !slow & cook | bake'], $builder->getBindings());
+    }
+
+    public function test_unsupported_languages_throw()
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->getCockroachQueryBuilder()->from('posts')->whereFullText('body', 'x', ['language' => 'arabic'])->toSql();
+    }
+
+    public function test_full_text_relevance()
+    {
+        $builder = $this->getCockroachQueryBuilder();
+        $builder->select('id')->from('posts')->searchFullText('body', 'fast');
+
+        $this->assertSame(
+            'select "id" from "posts" where case when to_tsvector(\'english\', ?) = \'\'::tsvector then false else to_tsvector(\'english\', coalesce("body", \'\')) @@ plainto_tsquery(\'english\', ?) end order by case when to_tsvector(\'english\', ?) = \'\'::tsvector then 0 else ts_rank(to_tsvector(\'english\', coalesce("body", \'\')), plainto_tsquery(\'english\', ?)) end desc',
+            $builder->toSql()
+        );
+        $this->assertSame(['fast', 'fast', 'fast', 'fast'], $builder->getBindings());
+    }
+
+    public function test_trigram_search()
+    {
+        $builder = $this->getCockroachQueryBuilder();
+        $builder->select('*')->from('words')->whereContains('word', '50%_off')->whereSimilar('word', 'aple', 0.4, unaccent: true, boolean: 'or');
+
+        $this->assertSame(
+            'select * from "words" where "word" ilike ? or (unaccent(lower("word")) % unaccent(lower(?)) and similarity(unaccent(lower("word")), unaccent(lower(?))) >= ?)',
+            $builder->toSql()
+        );
+        $this->assertSame(['%50\\%\\_off%', 'aple', 'aple', 0.4], $builder->getBindings());
+    }
+
+    public function test_suggest()
+    {
+        $builder = $this->getCockroachQueryBuilder();
+        $builder->select('*')->from('words')->suggest('word', 'apl');
+
+        $this->assertSame(
+            'select * from "words" where ("word" ilike ? or "word" % ?) order by "word" ilike ? desc, similarity("word", ?) desc, length("word"), "word" asc',
+            $builder->toSql()
+        );
+        $this->assertSame(['%apl%', 'apl', 'apl%', 'apl'], $builder->getBindings());
+
+        $short = $this->getCockroachQueryBuilder()->from('words')->suggest('word', 'ap');
+        $this->assertSame('select * from "words" where "word" ilike ? order by length("word"), "word" asc', $short->toSql());
+    }
+
+    /**
+     * @param  array<string, mixed>  $config
+     */
+    protected function getCockroachQueryBuilder(array $config = []): CockroachQueryBuilder
+    {
+        $connection = $this->getConnection();
+        $connection->shouldReceive('getConfig')->andReturnUsing(fn ($key) => $config[$key] ?? null);
+
+        return new CockroachQueryBuilder($connection, new CockroachGrammar($connection), m::mock(Processor::class));
     }
 
     protected function getConnection()

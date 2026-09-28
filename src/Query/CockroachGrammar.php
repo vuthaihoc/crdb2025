@@ -5,7 +5,6 @@ namespace YlsIdeas\CockroachDb\Query;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\Grammars\Grammar;
 use Illuminate\Database\Query\Grammars\PostgresGrammar;
-use Illuminate\Support\Collection;
 use YlsIdeas\CockroachDb\Exceptions\FeatureNotSupportedException;
 
 class CockroachGrammar extends PostgresGrammar
@@ -99,38 +98,70 @@ class CockroachGrammar extends PostgresGrammar
         return trim($statement);
     }
 
+    /**
+     * Compile a full-text "where" clause with the expression of the FULLTEXT
+     * index (see FullText). With `vector` => true, the column is a tsvector.
+     *
+     * CockroachQueryBuilder binds the words of the search first: a search
+     * without any lexeme (stopwords, punctuation) then matches nothing
+     * instead of failing.
+     */
     public function whereFullText(Builder $query, $where)
     {
-        $language = $where['options']['language'] ?? 'english';
+        return $this->compileFullTextMatch($query, $where['columns'], $where['options'], $this->parameter($where['value']));
+    }
 
-        if (! in_array($language, $this->validFullTextLanguages())) {
-            $language = 'english';
+    /**
+     * @param  string|list<string>  $columns
+     * @param  array<string, mixed>  $options
+     */
+    public function compileFullTextMatch(Builder $query, string|array $columns, array $options, string $value = '?'): string
+    {
+        [$document, $language, $function] = $this->fullTextParts($query, $columns, $options);
+        $match = "{$document} @@ {$function}('{$language}', {$value})";
+
+        if (! ($options['guard'] ?? false)) {
+            return $match;
         }
 
-        //        $columns = (new Collection($where['columns']))->map(function ($column) use ($language) {
-        //            return "to_tsvector('{$language}', {$this->wrap($column)})";
-        //        })->implode(' || ');
+        return "case when to_tsvector('{$language}', ?) = ''::tsvector then false else {$match} end";
+    }
 
-        $columns = array_map(function ($column) {
-            return "({$this->wrap($column)})";
-        }, $where['columns']);
-        $columns = implode(' || \' \' || ', $columns);
+    /**
+     * ts_rank() of the document; 0 for a search without any lexeme. Binds
+     * the words of the search, then the search.
+     *
+     * @param  string|list<string>  $columns
+     * @param  array<string, mixed>  $options
+     */
+    public function compileFullTextRank(Builder $query, string|array $columns, array $options): string
+    {
+        [$document, $language, $function] = $this->fullTextParts($query, $columns, $options);
 
-        $mode = 'plainto_tsquery';
+        return "case when to_tsvector('{$language}', ?) = ''::tsvector then 0 else ts_rank({$document}, {$function}('{$language}', ?)) end";
+    }
 
-        if (($where['options']['mode'] ?? []) === 'phrase') {
-            $mode = 'phraseto_tsquery';
+    /**
+     * @param  string|list<string>  $columns
+     * @param  array<string, mixed>  $options
+     * @return array{0: string, 1: string, 2: string}
+     */
+    protected function fullTextParts(Builder $query, string|array $columns, array $options): array
+    {
+        $columns = array_values((array) $columns);
+        $language = FullText::language($this->connection, $options['language'] ?? null);
+
+        if ($options['vector'] ?? false) {
+            if (count($columns) !== 1) {
+                throw new FeatureNotSupportedException('CockroachDB cannot combine tsvector columns: search one tsvector column.');
+            }
+
+            $document = $this->wrap($columns[0]);
+        } else {
+            $document = FullText::document(array_map(fn ($column) => $this->wrap($column), $columns), $language);
         }
 
-        //        if (($where['options']['mode'] ?? []) === 'websearch') {
-        //            $mode = 'websearch_to_tsquery';
-        //        }
-
-        if (($where['options']['mode'] ?? []) === 'custom') {
-            $mode = 'to_tsquery';
-        }
-
-        return "to_tsvector('{$language}', {$columns}) @@ {$mode}('{$language}', {$this->parameter($where['value'])})";
+        return [$document, $language, FullText::queryFunction($options['mode'] ?? null)];
     }
 
     /**
