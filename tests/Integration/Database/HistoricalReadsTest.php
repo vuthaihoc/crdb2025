@@ -50,6 +50,19 @@ class HistoricalReadsTest extends DatabaseTestCase
         );
     }
 
+    public function test_laravel_db_portable_contracts()
+    {
+        $query = DB::table('hr_orders');
+
+        $this->assertInstanceOf(\DbPortable\Contracts\HistoricalReads::class, $query);
+        $this->assertInstanceOf(\DbPortable\Contracts\SearchBox::class, $query);
+        $this->assertInstanceOf(\DbPortable\Contracts\SimilaritySearch::class, $query);
+
+        $this->assertStringEndsWith('as of system time follower_read_timestamp()', DB::table('hr_orders')->readStale()->toSql());
+        $this->assertStringEndsWith("as of system time '-10s'", DB::table('hr_orders')->asOfTime('-10s')->toSql());
+        $this->assertStringNotContainsString('as of system time', DB::table('hr_orders')->asOfTime('-10s')->readCurrent()->toSql());
+    }
+
     public function test_invalid_values_are_rejected()
     {
         $this->expectException(InvalidArgumentException::class);

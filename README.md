@@ -291,6 +291,7 @@ DB::table('orders')->asOfSystemTime(now()->subHour())->get();
 - The clause goes on the top-level `SELECT`; CockroachDB rejects it in subqueries.
 - Inside a transaction CockroachDB rejects it too, so the query reads current data there. This also keeps tests that run in `DatabaseTransactions` working.
 - `withoutHistoricalRead()` removes it again.
+- The builder implements `DbPortable\Contracts\HistoricalReads` of laravel-db-portable: `readStale()`, `asOfTime()` and `readCurrent()` are the same reads under the names that also run on MatrixOne, MySQL, PostgreSQL and SQLite.
 
 ### Serverless Support
 Cockroach Serverless requires you to provide a cluster with connection.
@@ -327,7 +328,7 @@ DATABASE_URL=cockroachdb://<username>:<password>@<host>:<port>/<database>?sslmod
 
 ## Related packages
 
-- [vuthaihoc/laravel-db-portable](https://github.com/vuthaihoc/laravel-db-portable): query builder and schema macros that compile for CockroachDB/PostgreSQL, MySQL/MatrixOne and SQLite, and `db-portable:scan` / `audit` / `copy` commands for moving between databases.
+- [vuthaihoc/laravel-db-portable](https://github.com/vuthaihoc/laravel-db-portable) (installed with this driver): the contracts the query builder implements (`HistoricalReads`, `SearchBox`, `SimilaritySearch`), query builder and schema macros that compile for CockroachDB/PostgreSQL, MySQL/MatrixOne and SQLite, and `db-portable:scan` / `audit` / `copy` commands for moving between databases.
 - [vuthaihoc/laravel-matrixone](https://github.com/vuthaihoc/laravel-matrixone): the MatrixOne driver. `strict_integers` keeps CockroachDB integer columns within MySQL ranges, so data copied to MatrixOne fits.
 
 ## Testing

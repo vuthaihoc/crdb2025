@@ -3,6 +3,9 @@
 namespace YlsIdeas\CockroachDb\Query;
 
 use DateTimeInterface;
+use DbPortable\Contracts\HistoricalReads;
+use DbPortable\Contracts\SearchBox;
+use DbPortable\Contracts\SimilaritySearch;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\Expression;
 use InvalidArgumentException;
@@ -13,7 +16,7 @@ use InvalidArgumentException;
  *
  * @property CockroachGrammar $grammar
  */
-class CockroachQueryBuilder extends Builder
+class CockroachQueryBuilder extends Builder implements HistoricalReads, SearchBox, SimilaritySearch
 {
     /**
      * The AS OF SYSTEM TIME expression of the query, compiled after its joins.
@@ -67,6 +70,36 @@ class CockroachQueryBuilder extends Builder
         $this->asOfSystemTime = null;
 
         return $this;
+    }
+
+    /**
+     * laravel-db-portable's name for followerRead().
+     *
+     * @return $this
+     */
+    public function readStale(): static
+    {
+        return $this->followerRead();
+    }
+
+    /**
+     * laravel-db-portable's name for asOfSystemTime().
+     *
+     * @return $this
+     */
+    public function asOfTime(DateTimeInterface|string $time): static
+    {
+        return $this->asOfSystemTime($time);
+    }
+
+    /**
+     * laravel-db-portable's name for withoutHistoricalRead().
+     *
+     * @return $this
+     */
+    public function readCurrent(): static
+    {
+        return $this->withoutHistoricalRead();
     }
 
     /**
