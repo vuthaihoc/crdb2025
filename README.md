@@ -140,6 +140,73 @@ Word::suggest('word', $search)->limit(10)->get();      // search box
   `using gin (unaccent(lower(word)) gin_trgm_ops)` for `unaccent: true`. The `trigramIndex()` macro of
   [laravel-db-portable](https://github.com/vuthaihoc/laravel-db-portable) creates both.
 
+### Laravel Scout
+The package registers a Scout engine for CockroachDB (Scout 11.8+). Use it instead of Scout's `database` engine,
+which only recognizes PostgreSQL by the `pgsql` driver name (on CockroachDB it matches case-sensitively, never
+orders by relevance and has no semantic search):
+
+```dotenv
+SCOUT_DRIVER=crdb
+```
+
+```php
+// config/scout.php
+'crdb' => [
+    'follower_read' => false,     // true: search data about 4.8 seconds old, served by any replica, no contention with writes
+    'vector_candidates' => 1000,  // semantic search: nearest rows taken from the vector index before filtering
+],
+```
+
+```php
+use Laravel\Scout\Attributes\SearchUsingFullText;
+use Laravel\Scout\Attributes\SearchUsingPrefix;
+use Laravel\Scout\Searchable;
+use YlsIdeas\CockroachDb\Scout\SearchUsingFuzzy;
+
+class Word extends Model
+{
+    use Searchable;
+
+    #[SearchUsingFullText(['definition'], ['language' => 'simple'])]
+    #[SearchUsingPrefix(['code'])]
+    #[SearchUsingFuzzy(['word'], unaccent: true)]    // typo tolerant, "chao" finds "chào"
+    public function toSearchableArray(): array
+    {
+        return ['id' => $this->id, 'word' => $this->word, 'code' => $this->code, 'definition' => $this->definition];
+    }
+
+    // Optional: semantic and hybrid search on a vector column named "embedding" (or searchableEmbeddingColumn()).
+    // A string is embedded with the Laravel AI SDK (laravel/ai); an array is stored as is.
+    public function toSearchableEmbedding(): string|array
+    {
+        return $this->word."\n".$this->definition;
+    }
+}
+
+Word::search('chao')->get();                        // like, prefix, fuzzy and full-text columns, most relevant first
+Word::search('greeting')->where('language_code', 'vi')->paginate(20);
+Word::search('how to say hello')->semantic()->get();  // cosine similarity
+Word::search('hello')->hybrid()->get();               // rank fusion of text and semantic results
+```
+
+- Other columns match `ilike '%search%'` (`#[SearchUsingPrefix]`: `ilike 'search%'`), with `%` and `_` in the search
+  matched literally; columns cast to numbers or booleans in the model are compared as text. An integer key is
+  matched by equality when the search is a number.
+- Full-text columns use the driver's `whereFullText()` (see above) and are ordered by `ts_rank`.
+- `#[SearchUsingFuzzy]` columns match values containing the search or similar to it (`%`, trigram index), ordered by
+  similarity; `threshold:` sets a stricter minimum similarity.
+- Semantic search needs a `vector` column (`$table->vector('embedding', 1536)->index()` creates a vector index)
+  and uses cosine distance (`<=>`); `->semantic(0.8)` sets the minimum similarity. CockroachDB only uses the
+  vector index for `order by distance limit k`, not with other conditions, so the engine takes the
+  `vector_candidates` nearest rows from the index, then applies Scout's `where` constraints and the minimum
+  similarity to them: like any approximate search, a strongly filtered search may return fewer rows than exist.
+- Indexes: `$table->fullText([...])` for full-text columns, a trigram index for like and fuzzy columns (`trigramIndex()`
+  of laravel-db-portable, with `unaccent: true` for `SearchUsingFuzzy(..., unaccent: true)`).
+
+Coming from `vuthaihoc/scout-crdb-driver`: `SearchUsingFuzzy` becomes this package's attribute (CockroachDB has no
+`word_similarity()`, so it compares whole values), `SearchUsingTrigram` columns are plain columns (`ilike '%...%'`),
+`SearchUsingExact` is Scout's `SearchUsingPrefix` or a `where()`, and `crdb:indexes` is replaced by migrations.
+
 ### Migrations and `autocommit_before_ddl`
 Since v25, CockroachDB commits the open transaction before every DDL statement (`autocommit_before_ddl = on`),
 so a migration wrapped in a transaction fails with "There is no active transaction". The driver therefore

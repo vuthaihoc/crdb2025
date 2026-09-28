@@ -25,6 +25,7 @@
     "require-dev": {
         "larastan/larastan": "^3.0",
         "laravel/pint": "^1.17",
+        "laravel/scout": "^11.8",
         "nunomaduro/collision": "^8.1",
         "orchestra/testbench": "^10.0|^11.0",
         "pestphp/pest": "^3.7",
@@ -35,7 +36,8 @@
     },
     "suggest": {
         "vuthaihoc/laravel-db-portable": "Portable JSON, NULLS LAST and index macros, and scan/audit/copy commands for moving between CockroachDB, MatrixOne, MySQL and PostgreSQL",
-        "vuthaihoc/laravel-matrixone": "MatrixOne driver, for moving an application from CockroachDB to MatrixOne"
+        "vuthaihoc/laravel-matrixone": "MatrixOne driver, for moving an application from CockroachDB to MatrixOne",
+        "laravel/scout": "Full-text, fuzzy, semantic and hybrid search with SCOUT_DRIVER=crdb (Scout 11.8+)"
     },
     "autoload": {
         "psr-4": {
