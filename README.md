@@ -125,6 +125,19 @@ MatrixOne. `strict_integers` keeps every integer column within its MySQL range:
 Auto-increment columns (`id()`, `increments()`) are unchanged. The option applies when columns are created;
 `->change()` only changes the type. It is off by default so existing schemas keep their behaviour.
 
+### Historical reads and follower reads
+`AS OF SYSTEM TIME` reads data as it was in the past. The read takes no locks and never conflicts with writes. A follower read (about 4.8 seconds old) can be served by any replica, the nearest one in a multi-node cluster. Both suit dashboards and reports, which can show data a few seconds old:
+
+```php
+Order::query()->followerRead()->where('status', 'paid')->sum('total');
+DB::table('orders')->asOfSystemTime('-10s')->count();
+DB::table('orders')->asOfSystemTime(now()->subHour())->get();
+```
+
+- The clause goes on the top-level `SELECT`; CockroachDB rejects it in subqueries.
+- Inside a transaction CockroachDB rejects it too, so the query reads current data there. This also keeps tests that run in `DatabaseTransactions` working.
+- `withoutHistoricalRead()` removes it again.
+
 ### Serverless Support
 Cockroach Serverless requires you to provide a cluster with connection.
 Laravel doesn't provide this out of the box, so, it's being implemented as an extra `cluster` parameter in the 

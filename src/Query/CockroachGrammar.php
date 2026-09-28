@@ -11,6 +11,41 @@ use YlsIdeas\CockroachDb\Exceptions\FeatureNotSupportedException;
 class CockroachGrammar extends PostgresGrammar
 {
     /**
+     * AS OF SYSTEM TIME follows the FROM clause and its joins.
+     *
+     * @var string[]
+     */
+    protected $selectComponents = [
+        'aggregate',
+        'columns',
+        'from',
+        'indexHint',
+        'joins',
+        'asOfSystemTime',
+        'wheres',
+        'groups',
+        'havings',
+        'orders',
+        'limit',
+        'offset',
+        'lock',
+    ];
+
+    /**
+     * Compile the AS OF SYSTEM TIME clause of a historical read. CockroachDB
+     * rejects it inside a transaction ("inconsistent AS OF SYSTEM TIME
+     * timestamp"), so there the query reads current data instead.
+     */
+    protected function compileAsOfSystemTime(Builder $query, string $expression): string
+    {
+        if ($query->getConnection()->transactionLevel() > 0) {
+            return '';
+        }
+
+        return 'as of system time '.$expression;
+    }
+
+    /**
      * Compile an update statement into SQL.
      *
      * @param  \Illuminate\Database\Query\Builder  $query
@@ -72,9 +107,9 @@ class CockroachGrammar extends PostgresGrammar
             $language = 'english';
         }
 
-//        $columns = (new Collection($where['columns']))->map(function ($column) use ($language) {
-//            return "to_tsvector('{$language}', {$this->wrap($column)})";
-//        })->implode(' || ');
+        //        $columns = (new Collection($where['columns']))->map(function ($column) use ($language) {
+        //            return "to_tsvector('{$language}', {$this->wrap($column)})";
+        //        })->implode(' || ');
 
         $columns = array_map(function ($column) {
             return "({$this->wrap($column)})";
@@ -87,9 +122,9 @@ class CockroachGrammar extends PostgresGrammar
             $mode = 'phraseto_tsquery';
         }
 
-//        if (($where['options']['mode'] ?? []) === 'websearch') {
-//            $mode = 'websearch_to_tsquery';
-//        }
+        //        if (($where['options']['mode'] ?? []) === 'websearch') {
+        //            $mode = 'websearch_to_tsquery';
+        //        }
 
         if (($where['options']['mode'] ?? []) === 'custom') {
             $mode = 'to_tsquery';
@@ -119,5 +154,4 @@ class CockroachGrammar extends PostgresGrammar
 
         return "{$field} = jsonb_set({$field}::jsonb, {$path}, ({$this->parameter($value)})::STRING::JSONB)";
     }
-
 }
