@@ -42,7 +42,8 @@ try {
     }
 
 } catch (PDOException $exception) {
-    exit('Failed to creating database: ' . $exception->getMessage() . PHP_EOL);
+    fwrite(STDERR, 'Failed to create the database: ' . $exception->getMessage() . PHP_EOL);
+    exit(1);
 }
 
 echo 'Database & User created' . PHP_EOL;

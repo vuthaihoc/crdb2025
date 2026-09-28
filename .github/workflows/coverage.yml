@@ -2,9 +2,8 @@ name: Coverage
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, custom ]
   pull_request:
-    branches: [ main ]
 
 jobs:
   generate-coverage:
@@ -15,9 +14,9 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Run CockroachDB Service
-        run: docker-compose up -d
+        run: docker compose up -d
         env:
-          VERSION: v23.1.13
+          VERSION: v26.2.6
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -28,6 +27,14 @@ jobs:
           coverage: pcov
 
       - uses: ramsey/composer-install@v4
+
+      - name: Wait for CockroachDB
+        run: |
+          for i in $(seq 1 60); do
+            php -r 'new PDO("pgsql:host=127.0.0.1;port=26257;dbname=defaultdb", "root", "");' 2>/dev/null && exit 0
+            sleep 2
+          done
+          exit 1
 
       - name: Configure Database
         run: php ./database.php

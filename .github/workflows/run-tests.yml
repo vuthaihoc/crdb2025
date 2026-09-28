@@ -3,47 +3,33 @@ name: PHPUnit Tests
 on:
   push:
   pull_request:
-    branches: [ main ]
-  schedule:
-    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
-    if: github.event_name != 'schedule' || github.repository == 'ylsideas/cockroachdb-laravel'
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest ]
-        php: [ 8.2, 8.3 ]
-        laravel: [ 11.*, 10.*, 9.* ]
-        cockroachdb: [ v22.2.17, v23.2.2 ]
-        dependencies: [ stable, lowest ]
         include:
-          - laravel: 11.*
-            testbench: ^9.0
-          - laravel: 10.*
-            testbench: ^8.0
-          - laravel: 9.*
-            testbench: ^7.0
-          - php: 8.2
-            dependencies: lowest
-            dotenv: ^5.5.0
-            carbon: ^2.62.1
-          - php: 8.3
-            dependencies: lowest
-            dotenv: ^5.5.0
-            carbon: ^2.62.1
+          - { php: '8.2', laravel: '12.*', testbench: '^10.0', cockroachdb: v26.2.6 }
+          - { php: '8.3', laravel: '12.*', testbench: '^10.0', cockroachdb: v25.4.17 }
+          - { php: '8.3', laravel: '13.*', testbench: '^11.0', cockroachdb: v25.4.17 }
+          - { php: '8.4', laravel: '13.*', testbench: '^11.0', cockroachdb: v26.2.6 }
 
-
-    name: P${{ matrix.php }} - L${{ matrix.laravel }} - ${{ matrix.dependencies }} - crdb.${{ matrix.cockroachdb }} ${{ matrix.os }}
+    name: P${{ matrix.php }} - L${{ matrix.laravel }} - crdb.${{ matrix.cockroachdb }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
       - name: Run CockroachDB Service
-        run: docker-compose up -d
+        run: docker compose up -d
         env:
           VERSION: ${{ matrix.cockroachdb }}
 
@@ -62,26 +48,26 @@ jobs:
 
       - name: Require Laravel Version
         run: >
-          composer require
+          composer require --dev --no-update --no-interaction
           "laravel/framework:${{ matrix.laravel }}" "orchestra/testbench:${{ matrix.testbench }}"
-          --no-interaction --no-update
 
-      - name: Require Minimum Packages for version
-        if: ${{ (matrix.php == '8.2' || matrix.php == '8.3') && matrix.dependencies == 'lowest' }}
-        run: >
-          composer require
-          "vlucas/phpdotenv:${{ matrix.dotenv }}" "nesbot/carbon:${{ matrix.carbon }}"
-          --no-interaction --no-update
-
+      # composer update, so the lock file does not override the Laravel version above.
       - name: Install dependencies
         uses: ramsey/composer-install@v4
         with:
-          dependency-versions: ${{ matrix.dependencies }}
-          composer-options: ${{ matrix.composer-options }}
+          dependency-versions: highest
+
+      - name: Wait for CockroachDB
+        run: |
+          for i in $(seq 1 60); do
+            php -r 'new PDO("pgsql:host=127.0.0.1;port=26257;dbname=defaultdb", "root", "");' 2>/dev/null && exit 0
+            sleep 2
+          done
+          docker compose logs --tail 100
+          exit 1
 
       - name: Configure Database
-        run: |
-          php ./database.php
+        run: php ./database.php
 
       - name: Execute tests
         run: vendor/bin/pest
