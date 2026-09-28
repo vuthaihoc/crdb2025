@@ -198,10 +198,9 @@ class ScoutTest extends DatabaseTestCase
     public function test_follower_reads()
     {
         $this->app->make(EngineManager::class)->forgetDrivers()->extend('crdb', fn () => new FakeEmbeddingsEngine(['follower_read' => true]));
-        DB::enableQueryLog();
-
-        // The results depend on the data of 4.8 seconds ago: only the SQL is checked.
-        ScoutArticle::search('database')->raw();
-        $this->assertStringContainsString('follower_read_timestamp()', collect(DB::getQueryLog())->pluck('query')->implode("\n"));
+        // A follower read sees the data of about 4.8 seconds ago, when the table did
+        // not exist yet: only the SQL is checked, without running it.
+        $queries = DB::pretend(fn () => ScoutArticle::search('database')->raw());
+        $this->assertStringContainsString('follower_read_timestamp()', collect($queries)->pluck('query')->implode("\n"));
     }
 }
