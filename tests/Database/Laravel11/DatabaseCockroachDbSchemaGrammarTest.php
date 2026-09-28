@@ -7,6 +7,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Schema\ForeignIdColumnDefinition;
 use Illuminate\Support\Fluent;
 use Mockery as m;
+use PHPUnit\Framework\Attributes\Before;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use YlsIdeas\CockroachDb\Exceptions\FeatureNotSupportedException;
 use YlsIdeas\CockroachDb\Schema\CockroachDbGrammar;
@@ -16,9 +18,7 @@ class DatabaseCockroachDbSchemaGrammarTest extends TestCase
 {
     use WithMultipleApplicationVersions;
 
-    /**
-     * @before
-     */
+    #[Before]
     public function onlyForLaravel10()
     {
         $this->skipIfOlderThan('11.0.0');
@@ -813,9 +813,7 @@ class DatabaseCockroachDbSchemaGrammarTest extends TestCase
         ], $statements);
     }
 
-    /**
-     * @dataProvider generatedAsStatements
-     */
+    #[DataProvider('generatedAsStatements')]
     public function test_adding_generated_as(callable $alter, string $expected)
     {
         $blueprint = new Blueprint('users');
