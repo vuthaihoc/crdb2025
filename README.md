@@ -91,6 +91,11 @@ runs migrations outside transactions, like MySQL. To keep transactional migratio
 ],
 ```
 
+### Changing columns and `schema_locked`
+Since v26, CockroachDB creates tables with `schema_locked = true` and rejects identity changes on a locked
+table. `->change()` therefore leaves out Laravel's `drop identity if exists` when the column has no identity,
+drops an identity in its own statement, and unlocks the table around identity changes (locking it again).
+
 ### Session variables
 The `variables` option runs `SET <name> = <value>` on every new connection:
 
@@ -203,7 +208,7 @@ php ./database.php
 Afterwards you can run the test suite. `DB_HOST` / `DB_PORT` point it at another server, for example a
 throwaway in-memory node:
 ```bash
-docker run -d --name crdb-test -p 127.0.0.1:26258:26257 cockroachdb/cockroach:v25.3.2 start-single-node --insecure --store=type=mem,size=1GiB
+docker run -d --name crdb-test -p 127.0.0.1:26258:26257 cockroachdb/cockroach:v26.2.6 start-single-node --insecure --store=type=mem,size=1GiB
 DB_PORT=26258 php ./database.php
 DB_PORT=26258 composer test
 ```

@@ -136,6 +136,83 @@ class CockroachDbGrammar extends PostgresGrammar
     }
 
     /**
+     * Compile a change column command.
+     *
+     * CockroachDB 26 creates tables with `schema_locked = true`, and identity
+     * changes cannot unlock them automatically. Laravel adds `drop identity if
+     * exists` to every change, which is rejected even when the column has no
+     * identity: an identity is dropped by its own statement, before the
+     * change (CockroachDB rejects a default on a column that is still an
+     * identity), and a locked table is unlocked around identity changes.
+     * The column is not looked up when pretending.
+     *
+     * @param  \Illuminate\Database\Schema\Blueprint  $blueprint
+     * @param  \Illuminate\Support\Fluent  $command
+     * @return list<string>|string
+     */
+    public function compileChange(Blueprint $blueprint, Fluent $command)
+    {
+        $column = $command->column;
+        $table = $this->wrapTable($blueprint);
+
+        // Laravel keeps the identity only for autoIncrement() without generatedAs().
+        $dropsIdentity = ! ($column->autoIncrement && is_null($column->generatedAs))
+            && $this->isIdentityColumn($blueprint, $column->name);
+
+        $statements = [parent::compileChange($blueprint, $command)];
+
+        if ($dropsIdentity) {
+            array_unshift($statements, "alter table {$table} alter column {$this->wrap($column)} drop identity");
+        }
+
+        if (($dropsIdentity || ! is_null($column->generatedAs)) && $this->isSchemaLocked($blueprint)) {
+            array_unshift($statements, "alter table {$table} set (schema_locked = false)");
+            $statements[] = "alter table {$table} set (schema_locked = true)";
+        }
+
+        return count($statements) === 1 ? $statements[0] : $statements;
+    }
+
+    /**
+     * The identity is dropped by compileChange().
+     *
+     * @return list<string>|string|null
+     */
+    protected function modifyGeneratedAs(Blueprint $blueprint, Fluent $column)
+    {
+        $sql = parent::modifyGeneratedAs($blueprint, $column);
+
+        return is_array($sql) ? array_values(array_diff($sql, ['drop identity if exists'])) : $sql;
+    }
+
+    protected function isIdentityColumn(Blueprint $blueprint, string $column): bool
+    {
+        if ($this->connection->pretending()) {
+            return false;
+        }
+
+        [$schema, $table] = $this->connection->getSchemaBuilder()->parseSchemaAndTable($blueprint->getTable(), true);
+
+        $rows = $this->connection->select(
+            "select 1 from information_schema.columns where table_schema = ? and table_name = ? and column_name = ? and is_identity = 'YES'",
+            [$schema, $this->connection->getTablePrefix().$table, $column]
+        );
+
+        return $rows !== [];
+    }
+
+    protected function isSchemaLocked(Blueprint $blueprint): bool
+    {
+        if ($this->connection->pretending()) {
+            return false;
+        }
+
+        $rows = $this->connection->select('show create table '.$this->wrapTable($blueprint));
+
+        return str_contains((string) ($rows[0]->create_statement ?? ''), 'schema_locked = true');
+    }
+
+    /**
      * CockroachDB keeps dropped columns in pg_attribute (attisdropped), e.g.
      * the hidden rowid column dropped when a primary key is added after the
      * table is created, as Laravel does for `->primary()`.
