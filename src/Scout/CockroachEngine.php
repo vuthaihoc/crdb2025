@@ -92,6 +92,7 @@ class CockroachEngine extends DatabaseEngine
      * results), with the semantic query of buildSemanticSearchQuery().
      *
      * @param  Builder<Model>  $builder
+     * @return \Illuminate\Database\Eloquent\Collection<int, Model>
      */
     protected function hybridSearchModels(Builder $builder, int $limit)
     {

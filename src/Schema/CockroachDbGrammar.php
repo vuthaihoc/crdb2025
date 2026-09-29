@@ -66,6 +66,9 @@ class CockroachDbGrammar extends PostgresGrammar
     /**
      * With `strict_integers`, integer() is INT4 (CockroachDB's `integer` is INT8)
      * and unsigned columns get room for their MySQL range.
+     *
+     * @param  Fluent<string, mixed>  $column
+     * @return string
      */
     protected function typeInteger(Fluent $column)
     {
@@ -76,6 +79,10 @@ class CockroachDbGrammar extends PostgresGrammar
         return $column->unsigned ? 'int8' : 'int4';
     }
 
+    /**
+     * @param  Fluent<string, mixed>  $column
+     * @return string
+     */
     protected function typeMediumInteger(Fluent $column)
     {
         if (! $this->usesStrictIntegers() || $this->isSerial($column)) {
@@ -85,6 +92,10 @@ class CockroachDbGrammar extends PostgresGrammar
         return 'int4';
     }
 
+    /**
+     * @param  Fluent<string, mixed>  $column
+     * @return string
+     */
     protected function typeSmallInteger(Fluent $column)
     {
         if (! $this->usesStrictIntegers() || $this->isSerial($column) || ! $column->unsigned) {
@@ -94,6 +105,10 @@ class CockroachDbGrammar extends PostgresGrammar
         return 'int4';
     }
 
+    /**
+     * @param  Fluent<string, mixed>  $column
+     * @return string
+     */
     protected function typeTinyInteger(Fluent $column)
     {
         if (! $this->usesStrictIntegers() || $this->isSerial($column)) {
@@ -108,6 +123,7 @@ class CockroachDbGrammar extends PostgresGrammar
      * the data can move to MySQL-compatible databases (CockroachDB only checks
      * the width of INT2/INT4 columns, not tinyint or unsigned ranges).
      *
+     * @param  Fluent<string, mixed>  $column
      * @return string|null
      */
     protected function modifyIntegerRange(Blueprint $blueprint, Fluent $column)
@@ -130,6 +146,9 @@ class CockroachDbGrammar extends PostgresGrammar
         return (bool) $this->connection->getConfig('strict_integers');
     }
 
+    /**
+     * @param  Fluent<string, mixed>  $column
+     */
     protected function isSerial(Fluent $column): bool
     {
         return $column->autoIncrement && is_null($column->generatedAs) && ! $column->change;
@@ -147,7 +166,7 @@ class CockroachDbGrammar extends PostgresGrammar
      * The column is not looked up when pretending.
      *
      * @param  \Illuminate\Database\Schema\Blueprint  $blueprint
-     * @param  \Illuminate\Support\Fluent  $command
+     * @param  \Illuminate\Support\Fluent<string, mixed>  $command
      * @return list<string>|string
      */
     public function compileChange(Blueprint $blueprint, Fluent $command)
@@ -176,6 +195,7 @@ class CockroachDbGrammar extends PostgresGrammar
     /**
      * The identity is dropped by compileChange().
      *
+     * @param  Fluent<string, mixed>  $column
      * @return list<string>|string|null
      */
     protected function modifyGeneratedAs(Blueprint $blueprint, Fluent $column)
@@ -230,6 +250,12 @@ class CockroachDbGrammar extends PostgresGrammar
         );
     }
 
+    /**
+     * Compile a plain index statement; GIN indexes keep PostgreSQL's syntax.
+     *
+     * @param  Fluent<string, mixed>  $command
+     * @return string
+     */
     public function compileIndex(Blueprint $blueprint, Fluent $command)
     {
         if (strtoupper($command->algorithm) == 'GIN') {
@@ -251,7 +277,7 @@ class CockroachDbGrammar extends PostgresGrammar
      * `->language()`, else the connection's `fulltext_language`, else english.
      *
      * @param  \Illuminate\Database\Schema\Blueprint  $blueprint
-     * @param  \Illuminate\Support\Fluent  $command
+     * @param  \Illuminate\Support\Fluent<string, mixed>  $command
      * @return string
      */
     public function compileFulltext(Blueprint $blueprint, Fluent $command)
@@ -270,7 +296,7 @@ class CockroachDbGrammar extends PostgresGrammar
      * Compile a drop fulltext index command.
      *
      * @param  \Illuminate\Database\Schema\Blueprint  $blueprint
-     * @param  \Illuminate\Support\Fluent  $command
+     * @param  \Illuminate\Support\Fluent<string, mixed>  $command
      * @return string
      */
     public function compileDropFullText(Blueprint $blueprint, Fluent $command)
@@ -285,7 +311,7 @@ class CockroachDbGrammar extends PostgresGrammar
      * https://github.com/cockroachdb/cockroach/issues/42840?version=v22.1
      *
      * @param  \Illuminate\Database\Schema\Blueprint  $blueprint
-     * @param  \Illuminate\Support\Fluent  $command
+     * @param  \Illuminate\Support\Fluent<string, mixed>  $command
      * @return string
      */
     public function compileDropUnique(Blueprint $blueprint, Fluent $command)

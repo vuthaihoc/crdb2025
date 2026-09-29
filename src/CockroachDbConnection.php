@@ -4,7 +4,6 @@ namespace YlsIdeas\CockroachDb;
 
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\Grammar as BaseGrammar;
-use Illuminate\Database\PDO\PostgresDriver;
 use Illuminate\Database\PostgresConnection;
 use Illuminate\Filesystem\Filesystem;
 use YlsIdeas\CockroachDb\Builder\CockroachDbBuilder as DbBuilder;
@@ -65,11 +64,12 @@ class CockroachDbConnection extends PostgresConnection implements ConnectionInte
     }
 
     /**
-     * Get the schema state for the connection.
+     * Get the schema state for the connection. CockroachSchemaState extends
+     * SchemaState, not PostgresSchemaState (different dump and load commands).
+     *
      * @return SchemaState
-     * @phpstan-ignore-next-line base class has fixed type that we can't correct
      */
-    public function getSchemaState(Filesystem $files = null, callable $processFactory = null)
+    public function getSchemaState(?Filesystem $files = null, ?callable $processFactory = null) // @phpstan-ignore method.childReturnType
     {
         return new SchemaState($this, $files, $processFactory);
     }
@@ -82,17 +82,5 @@ class CockroachDbConnection extends PostgresConnection implements ConnectionInte
     protected function getDefaultPostProcessor(): DbProcessor
     {
         return new DbProcessor();
-    }
-
-    /**
-     * Get the Doctrine DBAL driver.
-     *
-     * @return \Illuminate\Database\PDO\PostgresDriver
-     * @phpstan-ignore-next-line Missing in Laravel 11
-     */
-    protected function getDoctrineDriver()
-    {
-        /** @phpstan-ignore-next-line Now redundant in Laravel 11 */
-        return new PostgresDriver();
     }
 }

@@ -10,6 +10,8 @@ class CockroachDbConnector extends PostgresConnector implements ConnectorInterfa
     /**
      * When using CockroachDB serverless it's possible to apply a namespace to the name of the database
      * which then allows for the service to recognise which cluster is being used.
+     *
+     * @param  array<string, mixed>  $config
      */
     protected function getDsn(array $config): string
     {
@@ -20,6 +22,13 @@ class CockroachDbConnector extends PostgresConnector implements ConnectorInterfa
         return parent::getDsn($config);
     }
 
+    /**
+     * Apply the timezone, the session variables and `autocommit_before_ddl`.
+     *
+     * @param  \PDO  $connection
+     * @param  array<string, mixed>  $config
+     * @return void
+     */
     protected function configureTimezone($connection, array $config)
     {
         if (isset($config['timezone'])) {
@@ -41,6 +50,9 @@ class CockroachDbConnector extends PostgresConnector implements ConnectorInterfa
     /**
      * Apply the `variables` option with SET, e.g.
      * 'variables' => ['default_int_size' => 4, 'autocommit_before_ddl' => 'off'].
+     *
+     * @param  \PDO  $connection
+     * @param  array<string, mixed>  $config
      */
     protected function configureSessionVariables($connection, array $config): void
     {

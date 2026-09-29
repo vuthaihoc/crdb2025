@@ -48,7 +48,7 @@ class CockroachGrammar extends PostgresGrammar
      * Compile an update statement into SQL.
      *
      * @param  \Illuminate\Database\Query\Builder  $query
-     * @param  array  $values
+     * @param  array<string, mixed>  $values
      * @return string
      */
     public function compileUpdate(Builder $query, array $values): string
@@ -105,6 +105,9 @@ class CockroachGrammar extends PostgresGrammar
      * CockroachQueryBuilder binds the words of the search first: a search
      * without any lexeme (stopwords, punctuation) then matches nothing
      * instead of failing.
+     *
+     * @param  array<string, mixed>  $where
+     * @return string
      */
     public function whereFullText(Builder $query, $where)
     {
@@ -142,7 +145,7 @@ class CockroachGrammar extends PostgresGrammar
     }
 
     /**
-     * @param  string|list<string>  $columns
+     * @param  string|array<array-key, string>  $columns
      * @param  array<string, mixed>  $options
      * @return array{0: string, 1: string, 2: string}
      */
@@ -168,7 +171,7 @@ class CockroachGrammar extends PostgresGrammar
      * Compile a truncate table statement into SQL.
      *
      * @param  \Illuminate\Database\Query\Builder  $query
-     * @return array
+     * @return array<string, array<mixed>>
      */
     public function compileTruncate(Builder $query)
     {
